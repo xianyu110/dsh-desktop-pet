@@ -18,7 +18,7 @@
   },
   "build": {
     "appId": "com.xiaoshihou.dsh-desktop-pet",
-    "productName": "DSH Desktop Pet",
+    "productName": "dafeiyu",
     "executableName": "大肥鱼",
     "asar": true,
     "files": [

@@ -155,11 +155,11 @@ async function createTray() {
   const icon = sheet.crop({ x: 0, y: 0, width: 256, height: 256 }).resize({ width: 16, height: 16 })
   if (icon.isEmpty()) return
   tray = new Tray(icon)
-  tray.setToolTip('DSH 桌面宠物')
+  tray.setToolTip('大肥鱼.exe')
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: '显示宠物', click: () => mainWindow?.showInactive() },
-    { label: '隐藏宠物', click: () => mainWindow?.hide() },
-    { label: '打开 DSH', click: () => shell.openExternal(dshUrl) },
+    { label: '显示', click: () => mainWindow?.showInactive() },
+    { label: '隐藏', click: () => mainWindow?.hide() },
+    { label: '打开网页端', click: () => shell.openExternal(dshUrl) },
     { type: 'separator' },
     { label: '退出', click: () => app.quit() },
   ]))
