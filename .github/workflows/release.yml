@@ -48,7 +48,12 @@ jobs:
         run: npm test
 
       - name: 构建 Windows 安装包和便携版
-        run: npm run dist:win
+        env:
+          HOME: /tmp/electron-builder-home
+          WINEPREFIX: /tmp/electron-builder-wine
+        run: |
+          mkdir -p "$HOME" "$WINEPREFIX"
+          npm run dist:win
 
       - name: 发布到 GitHub Release
         uses: softprops/action-gh-release@v2
