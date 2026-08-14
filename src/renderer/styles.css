@@ -18,14 +18,15 @@ body { user-select: none; }
 }
 .pet[data-dragging="true"] { cursor: grabbing; }
 
-/* stage 与 sprite 分离（对齐网页端结构）：stage 承载位移动画与定位，
-   sprite 承载帧图与朝向翻转——transform 不共用，动画不会覆盖翻转 */
+/* stage 与 sprite 分离（对齐网页端结构）：stage 承载位移动画、定位与阴影，
+   sprite 承载帧图与朝向翻转——阴影挂 stage，翻转 sprite 时阴影不跟着翻面 */
 .stage {
   position: absolute;
   right: 13px;
   bottom: 0;
   width: 128px;
   height: 128px;
+  filter: drop-shadow(0 9px 7px rgb(12 35 50 / 22%));
 }
 
 .sprite {
@@ -37,7 +38,6 @@ body { user-select: none; }
   background-position: 0 0;
   image-rendering: auto;
   transform-origin: 50% 50%;
-  filter: drop-shadow(0 9px 7px rgb(12 35 50 / 22%));
 }
 
 .pulse {
@@ -134,7 +134,7 @@ body { user-select: none; }
 .pet[data-motion="wiggle"] .stage { animation: wiggle 1.2s ease-in-out infinite; }
 .pet[data-motion="shake"] .stage { animation: shake .4s linear infinite; }
 .pet[data-motion="tilt"] .stage { animation: tilt 1.2s ease-in-out infinite; }
-.pet[data-state="sleep"] .sprite { filter: grayscale(.12) drop-shadow(0 9px 7px rgb(12 35 50 / 16%)); }
+.pet[data-state="sleep"] .stage { filter: grayscale(.12) drop-shadow(0 9px 7px rgb(12 35 50 / 16%)); }
 
 @keyframes wiggle { 25% { transform: rotate(-2deg); } 75% { transform: rotate(2deg); } }
 @keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
