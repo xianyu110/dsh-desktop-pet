@@ -80,6 +80,7 @@ function createWindow() {
     height: WINDOW_HEIGHT,
     transparent: true,
     frame: false,
+    type: process.platform === 'linux' ? 'toolbar' : undefined,
     resizable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
@@ -96,6 +97,7 @@ function createWindow() {
   if (process.platform === 'darwin') mainWindow.setAlwaysOnTop(true, 'floating')
   else mainWindow.setAlwaysOnTop(true)
   mainWindow.setVisibleOnAllWorkspaces(true)
+  mainWindow.on('show', () => mainWindow?.setAlwaysOnTop(true))
   mainWindow.loadFile(join(__dirname, 'renderer', 'index.html'))
   if (capturePath !== undefined) {
     mainWindow.webContents.once('did-finish-load', () => {

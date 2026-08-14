@@ -42,6 +42,26 @@ body { user-select: none; }
   transform-origin: 50% 50%;
 }
 
+/* Native draggable region: on Wayland the compositor must perform the move;
+   the renderer/main-process coordinate loop remains available on X11. */
+.drag-handle {
+  position: absolute;
+  z-index: 7;
+  right: 57px;
+  bottom: 121px;
+  width: 34px;
+  height: 15px;
+  color: rgb(49 86 102 / 48%);
+  text-align: center;
+  font: 700 12px/10px sans-serif;
+  letter-spacing: 2px;
+  cursor: grab;
+  opacity: .45;
+  -webkit-app-region: drag;
+}
+.drag-handle:hover { opacity: .9; }
+.drag-handle:active { cursor: grabbing; }
+
 .pulse {
   position: absolute;
   z-index: 3;
@@ -99,6 +119,7 @@ body { user-select: none; }
   opacity: 0;
   transform: translateY(4px);
   transition: opacity 120ms ease, transform 120ms ease;
+  -webkit-app-region: no-drag;
 }
 .pet:hover .actions { opacity: 1; transform: none; }
 .actions button {
