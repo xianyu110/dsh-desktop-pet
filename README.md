@@ -9,11 +9,8 @@
 ```shell
 npm i -g @deepseek-ai/dsh
 dsh plugin --profile web add "github:xiaoshihou514/whale-girl#main" # 安装为多客户端适配的分支
+# 随后在发行版页面下载即可：https://github.com/xiaoshihou514/dsh-desktop-pet/releases
 ```
-
-> **避免两条大肥鱼**：桌面版与网页端宠物并存时，在 DSH 设置里把 whale-girl 的 `enabled` 关掉，网页端宠物即不再渲染（设置热生效，重新启用需刷新页面）。
-
-桌面版适配了 whale-girl 的完整信号面：账本（等级/XP/任务/失败/会话/称号/回忆）、升级庆祝、配置（尺寸/透明度/气泡时长/睡眠/游走），以及 `joy`/`drag`/`walk`/`wake` 行为与 `tilt` 动画。
 
 点个星标吧~这对我真的很重要
 

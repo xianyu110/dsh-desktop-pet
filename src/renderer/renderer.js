@@ -64,6 +64,9 @@ let lastWalkFrame = 0
 let tickTimer = null
 let blinkAt = 0 // 常态帧 0 静止，随机间隔眨眼（对齐网页端 nextBlinkAt 节奏）
 let blinkActive = false
+let flip = 1 // 素材朝左基准：1=朝左，-1=镜像朝右（对齐网页端 flip；动作间保持连续）
+let facingAt = 0 // 静态陪伴态（idle/think/wait）下次随机转身时刻（对齐网页端 nextFacingAt）
+let lastPointerX = 0 // 拖拽方向朝向（对比上一指针位置）
 
 function randomBetween(min, max) {
   return min + Math.random() * Math.max(0, max - min)
@@ -230,15 +233,31 @@ function updateIdle(now) {
   sleeping = connected && activity.name === 'idle' && idleSince !== 0 && now - idleSince > (cfg.sleepAfterMs ?? 60000)
 }
 
-function applyFlip() {
-  // 素材统一朝左基准：向右走（walkDir=1）→ scaleX(-1) 镜像朝右。
-  sprite.style.transform = `scaleX(${walkDir === 1 ? -1 : 1})`
+// 朝向刷新：flip 是共享朝向（1=朝左 / -1=朝右），walk/drag/静态转身都写它，
+// 动作间保持连续（对齐网页端 flip 语义）。
+function applyFacing() {
+  sprite.style.transform = `scaleX(${flip})`
+}
+
+// 静态陪伴态（idle/think/wait）偶尔随机转身（10–25s，对齐网页端 nextFacingAt）；
+// 离开静态态时清排程，下次重进重新随机——不转身的态不误触发旧时刻。
+function updateFacing(now) {
+  if (currentState === 'idle' || currentState === 'think' || currentState === 'wait') {
+    if (facingAt === 0) facingAt = now + 10000 + Math.random() * 15000
+    if (now >= facingAt) {
+      flip = -flip
+      applyFacing()
+      facingAt = now + 10000 + Math.random() * 15000
+    }
+  } else if (facingAt !== 0) {
+    facingAt = 0
+  }
 }
 
 function stopWalk() {
   walking = false
   walkAt = 0
-  sprite.style.transform = ''
+  // 不重置 flip：朝向连续（walk 停止后保持最后朝向，静态态随机转身再改写）
   if (walkRaf !== null) { cancelAnimationFrame(walkRaf); walkRaf = null }
 }
 
@@ -246,8 +265,10 @@ function startWalk() {
   const w = cfg.walk ?? CFG_DEFAULTS.walk
   walking = true
   walkDir = Math.random() < 0.5 ? 1 : -1
+  // 素材统一朝左基准：向右走（walkDir=1）→ 镜像朝右（flip=-1）
+  flip = -walkDir
   walkUntil = performance.now() + randomBetween(w.minMs, w.maxMs)
-  applyFlip()
+  applyFacing()
   lastWalkFrame = performance.now()
   walkRaf = requestAnimationFrame(walkStep)
 }
@@ -271,7 +292,8 @@ function walkStep(t) {
     if (!walking) return
     if (result !== null && typeof result === 'object' && result.moved === false) {
       walkDir = -walkDir
-      applyFlip()
+      flip = -flip
+      applyFacing()
     }
     walkRaf = requestAnimationFrame(walkStep)
   }).catch(() => stopWalk())
@@ -301,6 +323,7 @@ function tick() {
     next = pickState(now)
   }
   applyState(next)
+  updateFacing(now)
 }
 
 // ---- 配置（/whale-girl/config + configRevision 门控）----
@@ -364,6 +387,7 @@ sprite.addEventListener('pointerdown', event => {
   dragging = true
   dragMoved = false
   pointerOrigin = { x: event.screenX, y: event.screenY }
+  lastPointerX = event.screenX
   pet.dataset.dragging = 'true'
   sprite.setPointerCapture(event.pointerId)
   window.desktopPet.dragStart({ x: event.screenX, y: event.screenY })
@@ -375,6 +399,13 @@ sprite.addEventListener('pointermove', event => {
   if (!dragging) return
   if (!dragMoved && Math.hypot(event.screenX - pointerOrigin.x, event.screenY - pointerOrigin.y) < 5) return
   dragMoved = true
+  // 拖拽方向 → 朝向（对齐网页端：向左拖朝左 flip=1，向右拖朝右 flip=-1）
+  const nextFlip = event.screenX < lastPointerX ? 1 : -1
+  if (nextFlip !== flip) {
+    flip = nextFlip
+    applyFacing()
+  }
+  lastPointerX = event.screenX
   window.desktopPet.dragMove({ x: event.screenX, y: event.screenY })
 })
 
