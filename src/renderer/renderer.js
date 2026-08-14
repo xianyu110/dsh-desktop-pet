@@ -1,6 +1,7 @@
 'use strict'
 
 const pet = document.querySelector('#pet')
+const stage = document.querySelector('#stage')
 const sprite = document.querySelector('#sprite')
 const status = document.querySelector('#status')
 const detail = document.querySelector('#detail')
@@ -45,7 +46,7 @@ let dragMoved = false
 let pointerOrigin = null
 let cfg = { ...CFG_DEFAULTS, walk: { ...CFG_DEFAULTS.walk } }
 let lastConfigRevision = 0
-let stageSize = 150
+let stageSize = 128
 // 行为运行时（与 shared.cjs 的纯决策 + whale-girl client 语义对齐）
 let sleeping = false
 let idleSince = 0
@@ -61,9 +62,17 @@ let walkUntil = 0 // performance.now() 时钟（rAF 帧时刻）
 let walkRaf = null
 let lastWalkFrame = 0
 let tickTimer = null
+let blinkAt = 0 // 常态帧 0 静止，随机间隔眨眼（对齐网页端 nextBlinkAt 节奏）
+let blinkActive = false
 
 function randomBetween(min, max) {
   return min + Math.random() * Math.max(0, max - min)
+}
+
+// 桌面端展示尺寸：素材帧 256px 取整数倍缩放（128=2x 最清晰，非整数倍发虚）；
+// 夹取 128–160——config.size 默认 110 是给网页端小尺寸的，桌面窗口里太小像贴纸。
+function desktopStage(size) {
+  return Math.min(160, Math.max(128, size))
 }
 
 // 行为优先级表：与 shared.cjs pickDisplayState 镜像（renderer 无法 import CommonJS，
@@ -92,6 +101,9 @@ function pickState(now = Date.now()) {
 
 function renderFrame(stateConfig) {
   const frames = Math.max(1, stateConfig.frames ?? 1)
+  // stage 与 sprite 同步尺寸（stage 承载位移动画，sprite 承载帧图与翻转）
+  stage.style.width = `${stageSize}px`
+  stage.style.height = `${stageSize}px`
   sprite.style.width = `${stageSize}px`
   sprite.style.height = `${stageSize}px`
   sprite.style.backgroundSize = `${stageSize * frames}px ${stageSize}px`
@@ -105,6 +117,8 @@ function animate(stateConfig) {
   const frames = Math.max(1, stateConfig.frames ?? 1)
   if (frames === 1) return
   let direction = 1
+  blinkAt = 0
+  blinkActive = false
   frameTimer = setInterval(() => {
     if (stateConfig.playback === 'pingpong') {
       frame += direction
@@ -112,7 +126,20 @@ function animate(stateConfig) {
     } else if (stateConfig.playback === 'once') {
       frame = Math.min(frames - 1, frame + 1)
     } else if (stateConfig.playback === 'blink') {
-      frame = frame === 0 ? 1 + Math.floor(Math.random() * (frames - 1)) : 0
+      // 常态帧 0 静止，随机间隔（3-9s）眨一次眼（0→1→…→N-1→0）——对齐网页端，
+      // 不再每个 tick 随机跳帧（旧版每 500ms 乱跳像抽搐）。
+      if (blinkActive) {
+        frame += 1
+        if (frame >= frames) {
+          frame = 0
+          blinkActive = false
+          blinkAt = Date.now() + 3000 + Math.random() * 6000
+        }
+      } else {
+        if (frame !== 0) frame = 0
+        if (blinkAt === 0) blinkAt = Date.now() + 3000 + Math.random() * 6000
+        if (Date.now() >= blinkAt) blinkActive = true
+      }
     } else {
       frame = (frame + 1) % frames
     }
@@ -229,7 +256,11 @@ function startWalk() {
 // moved:false，翻转方向。
 function walkStep(t) {
   const w = cfg.walk ?? CFG_DEFAULTS.walk
-  if (!walking || sleeping || dragging || transient !== null || t >= walkUntil) {
+  const activity = snapshot?.activity ?? {}
+  // 会话活跃（think/wait 陪伴）或睡着/交互/瞬发 → 停走（与网页端一致：
+  // 否则窗口在动、动画却停在 think/wait——走路动画不触发）
+  if (!walking || sleeping || dragging || transient !== null
+    || activity.sessionThink === true || activity.sessionWait === true || t >= walkUntil) {
     stopWalk()
     return
   }
@@ -246,11 +277,12 @@ function walkStep(t) {
   }).catch(() => stopWalk())
 }
 
-// 静态陪伴态（idle/think/wait）周期排程游走；睡着/交互/瞬发中不排。
+// 只在纯 idle 时排程游走（think/wait 是会话陪伴态，网页端同样不游走；
+// 游走开始后 pickState 的 walk 行才能命中——否则窗口在动却显示陪伴动画）。
 function scheduleWalk(now) {
   const w = cfg.walk ?? CFG_DEFAULTS.walk
   if (!w.enabled || !connected) return
-  if (currentState !== 'idle' && currentState !== 'think' && currentState !== 'wait') return
+  if (currentState !== 'idle') return
   if (sleeping || dragging || transient !== null || walking) return
   if (walkAt === 0) walkAt = now + randomBetween(w.minWaitMs, w.maxWaitMs)
   if (now >= walkAt) startWalk()
@@ -289,8 +321,8 @@ function applyConfig(config) {
     ...config,
     walk: { ...CFG_DEFAULTS.walk, ...(config.walk !== null && typeof config.walk === 'object' ? config.walk : {}) },
   }
-  if (typeof config.size === 'number') stageSize = config.size
-  else if (character !== null) stageSize = character.meta?.stageSize ?? 150
+  if (typeof config.size === 'number') stageSize = desktopStage(config.size)
+  else if (character !== null) stageSize = desktopStage(character.meta?.stageSize ?? 128)
   if (typeof config.opacity === 'number') pet.style.opacity = String(config.opacity)
   // 尺寸变化 → 以新尺寸重排当前帧（不动动画状态）。
   if (character !== null && sprite.style.backgroundImage !== '') {
@@ -392,7 +424,7 @@ async function loadCharacter() {
   manifest = await window.desktopPet.manifest()
   character = manifest.characters?.[manifest.default]
   if (!character?.states) throw new Error('鲸鱼娘资源清单无效')
-  if (typeof cfg.size !== 'number') stageSize = character.meta?.stageSize ?? 150
+  if (typeof cfg.size !== 'number') stageSize = desktopStage(character.meta?.stageSize ?? 128)
   render()
 }
 

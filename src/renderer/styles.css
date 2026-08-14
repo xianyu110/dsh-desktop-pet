@@ -12,21 +12,31 @@ body { user-select: none; }
   right: 18px;
   bottom: 14px;
   width: 190px;
-  height: 215px;
+  /* 236 = 窗口 250 - bottom 14：容器加高，让状态卡（顶部）与精灵（底部）不重叠 */
+  height: 236px;
   cursor: grab;
 }
 .pet[data-dragging="true"] { cursor: grabbing; }
 
-.sprite {
+/* stage 与 sprite 分离（对齐网页端结构）：stage 承载位移动画与定位，
+   sprite 承载帧图与朝向翻转——transform 不共用，动画不会覆盖翻转 */
+.stage {
   position: absolute;
   right: 13px;
   bottom: 0;
-  width: 150px;
-  height: 150px;
+  width: 128px;
+  height: 128px;
+}
+
+.sprite {
+  position: absolute;
+  inset: 0;
+  width: 128px;
+  height: 128px;
   background-repeat: no-repeat;
   background-position: 0 0;
   image-rendering: auto;
-  transform-origin: 50% 80%;
+  transform-origin: 50% 50%;
   filter: drop-shadow(0 9px 7px rgb(12 35 50 / 22%));
 }
 
@@ -54,8 +64,27 @@ body { user-select: none; }
 .pet[data-attention="true"] .pulse { opacity: 1; transform: none; }
 .connection { display: block; color: #3784a0; font: 600 10px/1.2 Consolas, monospace; text-transform: uppercase; letter-spacing: .09em; }
 .pulse strong { display: block; margin-top: 3px; font-size: 14px; line-height: 1.25; }
-.pulse .detail { display: block; margin-top: 2px; color: #5d7884; font-size: 11px; line-height: 1.25; }
-.pulse .note { display: block; margin-top: 2px; color: #7a909b; font-size: 10px; line-height: 1.3; }
+/* detail/note 单行省略：账本文字再长也不撑高状态卡（否则会盖住下方精灵——纸片人回归） */
+.pulse .detail {
+  display: block;
+  margin-top: 2px;
+  color: #5d7884;
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pulse .note {
+  display: block;
+  margin-top: 2px;
+  color: #7a909b;
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .pulse .note[hidden] { display: none; }
 
 .actions {
@@ -100,18 +129,16 @@ body { user-select: none; }
   font-size: 12px;
 }
 
-.pet[data-motion="float"] .sprite { animation: float 2.4s ease-in-out infinite; }
-.pet[data-motion="wiggle"] .sprite { animation: wiggle 1.2s ease-in-out infinite; }
-.pet[data-motion="shake"] .sprite { animation: shake .4s linear infinite; }
-.pet[data-motion="tilt"] .sprite { animation: tilt 1.2s ease-in-out infinite; }
-.pet[data-state="celebrate"] .sprite { animation: hop .65s ease-in-out infinite; }
+/* 位移动画只挂 stage（不碰 sprite 的翻转 transform）。
+   不做上下浮动（float/hop）——桌面端保持静止，只有帧动画给生命力 */
+.pet[data-motion="wiggle"] .stage { animation: wiggle 1.2s ease-in-out infinite; }
+.pet[data-motion="shake"] .stage { animation: shake .4s linear infinite; }
+.pet[data-motion="tilt"] .stage { animation: tilt 1.2s ease-in-out infinite; }
 .pet[data-state="sleep"] .sprite { filter: grayscale(.12) drop-shadow(0 9px 7px rgb(12 35 50 / 16%)); }
 
-@keyframes float { 50% { transform: translateY(-5px); } }
 @keyframes wiggle { 25% { transform: rotate(-2deg); } 75% { transform: rotate(2deg); } }
 @keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 @keyframes tilt { 0%,100% { transform: rotate(0); } 30% { transform: rotate(-4deg); } 70% { transform: rotate(4deg); } }
-@keyframes hop { 45% { transform: translateY(-9px) rotate(-2deg); } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }

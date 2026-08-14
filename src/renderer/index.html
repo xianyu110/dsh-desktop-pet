@@ -14,7 +14,11 @@
       <span id="detail" class="detail">请启动 DSH Web 服务</span>
       <span id="note" class="note" hidden></span>
     </section>
-    <div id="sprite" class="sprite" role="img" aria-label="鲸鱼娘"></div>
+    <!-- stage/sprite 分离（对齐网页端）：stage 承载位移动画，sprite 承载帧图与朝向翻转，
+         两者不共用 transform，避免动画覆盖翻转（纸片人回归） -->
+    <div id="stage" class="stage">
+      <div id="sprite" class="sprite" role="img" aria-label="鲸鱼娘"></div>
+    </div>
     <nav id="actions" class="actions" aria-label="宠物操作">
       <button type="button" data-action="quit" title="退出">×</button>
     </nav>
