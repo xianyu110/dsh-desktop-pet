@@ -1,4 +1,4 @@
-name: 发布 Windows 版本
+name: 发布 Linux 和 Windows 版本
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  windows:
     runs-on: ubuntu-latest
     container:
       image: electronuserland/builder:wine
@@ -60,3 +60,37 @@ jobs:
         with:
           generate_release_notes: true
           files: dist/*.exe
+
+  linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 同步版本号
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: npm version "${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version
+
+      - name: 运行测试
+        run: npm test
+
+      - name: 构建 Linux AppImage 和 RPM
+        run: npm run dist:linux
+
+      - name: 发布到 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.AppImage
+            dist/*.rpm

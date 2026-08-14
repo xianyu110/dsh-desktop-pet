@@ -3,7 +3,7 @@
 const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, screen, shell } = require('electron')
 const { readFileSync, writeFileSync } = require('node:fs')
 const { join } = require('node:path')
-const { endpoint, normalizeDshUrl, validateSnapshot } = require('./shared.cjs')
+const { endpoint, normalizeDshUrl, linuxDisplayBackend, validateSnapshot } = require('./shared.cjs')
 
 const WINDOW_WIDTH = 280
 const WINDOW_HEIGHT = 250
@@ -13,6 +13,18 @@ const RETRY_MAX_MS = 15000
 // 在线期间 whale-girl 隐藏网页端宠物（避免双大肥鱼），退出/崩溃后心跳过期自动恢复。
 const PRESENCE_TTL_MS = 45000
 const PRESENCE_INTERVAL_MS = 15000
+
+if (process.platform === 'linux') {
+  const backend = linuxDisplayBackend()
+  app.commandLine.appendSwitch('ozone-platform', backend)
+  // Transparent, always-on-top Electron windows hit unstable GPU paths on
+  // several Mesa/NVIDIA + compositor combinations. This UI is a small sprite
+  // surface, so software compositing is both sufficient and more portable.
+  app.disableHardwareAcceleration()
+  if (backend === 'wayland') {
+    console.warn('dsh-desktop-pet: XWayland is unavailable; desktop walking and window dragging depend on compositor support')
+  }
+}
 
 function cliValue(name) {
   const index = process.argv.indexOf(name)
@@ -83,7 +95,8 @@ function createWindow() {
       nodeIntegration: false,
     },
   })
-  mainWindow.setAlwaysOnTop(true, 'floating')
+  if (process.platform === 'darwin') mainWindow.setAlwaysOnTop(true, 'floating')
+  else mainWindow.setAlwaysOnTop(true)
   mainWindow.setVisibleOnAllWorkspaces(true)
   mainWindow.loadFile(join(__dirname, 'renderer', 'index.html'))
   mainWindow.once('ready-to-show', () => mainWindow.showInactive())

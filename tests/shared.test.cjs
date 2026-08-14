@@ -2,7 +2,7 @@
 
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { endpoint, normalizeDshUrl, validateSnapshot, displayState, pickDisplayState, shouldWake, detectLevelUp, randomBetween } = require('../src/shared.cjs')
+const { endpoint, normalizeDshUrl, linuxDisplayBackend, validateSnapshot, displayState, pickDisplayState, shouldWake, detectLevelUp, randomBetween } = require('../src/shared.cjs')
 
 const snapshot = activity => ({ apiVersion: 1, pet: { level: 1 }, activity })
 
@@ -13,6 +13,14 @@ test('accepts loopback DSH URLs and rejects remote hosts', () => {
   assert.equal(endpoint('http://localhost:3080', '/whale-girl/state'), 'http://localhost:3080/whale-girl/state')
   assert.throws(() => normalizeDshUrl('https://example.com'), /本机/)
   assert.throws(() => normalizeDshUrl('file:///tmp/dsh'), /HTTP/)
+})
+
+test('selects a Linux display backend that preserves desktop movement', () => {
+  assert.equal(linuxDisplayBackend({ XDG_SESSION_TYPE: 'wayland', WAYLAND_DISPLAY: 'wayland-0', DISPLAY: ':0' }), 'x11')
+  assert.equal(linuxDisplayBackend({ XDG_SESSION_TYPE: 'wayland', WAYLAND_DISPLAY: 'wayland-0' }), 'wayland')
+  assert.equal(linuxDisplayBackend({ XDG_SESSION_TYPE: 'x11', DISPLAY: ':0' }), 'x11')
+  assert.equal(linuxDisplayBackend({ DSH_DESKTOP_PET_OZONE: 'wayland', DISPLAY: ':0' }), 'wayland')
+  assert.equal(linuxDisplayBackend({ DSH_DESKTOP_PET_OZONE: 'x11' }), 'x11')
 })
 
 test('validates whale-girl snapshot API version and required surfaces', () => {

@@ -2,6 +2,20 @@
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]'])
 
+function linuxDisplayBackend(env = process.env) {
+  if (env.DSH_DESKTOP_PET_OZONE === 'x11' || env.DSH_DESKTOP_PET_OZONE === 'wayland') {
+    return env.DSH_DESKTOP_PET_OZONE
+  }
+  // Wayland compositors do not let clients position their own top-level windows.
+  // The pet needs that capability for dragging and walking, so prefer XWayland
+  // when the session exposes DISPLAY. Native Wayland remains a usable stationary
+  // fallback on systems without XWayland.
+  if (env.XDG_SESSION_TYPE === 'wayland' || env.WAYLAND_DISPLAY) {
+    return env.DISPLAY ? 'x11' : 'wayland'
+  }
+  return 'x11'
+}
+
 function normalizeDshUrl(value = 'http://127.0.0.1:3080') {
   const url = new URL(value)
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('DSH 地址必须使用 HTTP 或 HTTPS')
@@ -99,4 +113,4 @@ function randomBetween(min, max, random = Math.random) {
   return min + random() * Math.max(0, max - min)
 }
 
-module.exports = { endpoint, normalizeDshUrl, validateSnapshot, displayState, pickDisplayState, shouldWake, detectLevelUp, randomBetween }
+module.exports = { endpoint, normalizeDshUrl, linuxDisplayBackend, validateSnapshot, displayState, pickDisplayState, shouldWake, detectLevelUp, randomBetween }
