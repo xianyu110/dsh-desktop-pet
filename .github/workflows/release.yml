@@ -1,4 +1,4 @@
-name: 发布 Linux 和 Windows 版本
+name: 发版
 
 on:
   push:
