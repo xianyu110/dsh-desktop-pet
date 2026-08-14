@@ -9,6 +9,10 @@ const WINDOW_WIDTH = 280
 const WINDOW_HEIGHT = 250
 const RETRY_MIN_MS = 1000
 const RETRY_MAX_MS = 15000
+// 桌面伴侣在场心跳（与 whale-girl src/presence.mjs 的 TTL/间隔契约一致）：
+// 在线期间 whale-girl 隐藏网页端宠物（避免双大肥鱼），退出/崩溃后心跳过期自动恢复。
+const PRESENCE_TTL_MS = 45000
+const PRESENCE_INTERVAL_MS = 15000
 
 function cliValue(name) {
   const index = process.argv.indexOf(name)
@@ -30,6 +34,7 @@ let retryMs = RETRY_MIN_MS
 let streamAbort = null
 let dragOrigin = null
 let stateSaveTimer = null
+let presenceTimer = null
 
 function stateFile() {
   return join(app.getPath('userData'), 'window-state.json')
@@ -223,15 +228,31 @@ ipcMain.handle('pet:walk-move', (_event, dx) => {
 })
 ipcMain.on('pet:quit', () => app.quit())
 
+// 在场心跳：在线期间 whale-girl 隐藏网页端宠物；退出/崩溃后 TTL 过期自动恢复。
+// DSH 未启动/断线时静默失败，下一轮重试（不阻塞主流程）。
+function pokePresence(online) {
+  fetch(endpoint(dshUrl, '/whale-girl/presence'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ online }),
+    signal: AbortSignal.timeout(5000),
+  }).catch(() => {})
+}
+
 app.whenReady().then(() => {
   createWindow()
   createTray().catch(() => {})
   connectionLoop()
+  pokePresence(true)
+  presenceTimer = setInterval(() => pokePresence(true), PRESENCE_INTERVAL_MS)
 })
 
 app.on('before-quit', () => {
   stopped = true
   streamAbort?.abort()
+  clearInterval(presenceTimer)
+  // 干净退出即时恢复网页端宠物（best-effort；进程被杀时由 TTL 兜底恢复）。
+  pokePresence(false)
   saveWindowState()
 })
 app.on('window-all-closed', event => event.preventDefault())
