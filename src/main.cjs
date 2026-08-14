@@ -29,6 +29,7 @@ let stopped = false
 let retryMs = RETRY_MIN_MS
 let streamAbort = null
 let dragOrigin = null
+let stateSaveTimer = null
 
 function stateFile() {
   return join(app.getPath('userData'), 'window-state.json')
@@ -90,7 +91,11 @@ function createWindow() {
       }, 2000)
     })
   }
-  mainWindow.on('moved', saveWindowState)
+  mainWindow.on('moved', () => {
+    // 防抖：游走/拖拽会高频触发 moved，同步落盘太频繁（游走时 ~20 次/秒）。
+    clearTimeout(stateSaveTimer)
+    stateSaveTimer = setTimeout(saveWindowState, 500)
+  })
   mainWindow.on('closed', () => { mainWindow = null })
 }
 
@@ -170,6 +175,7 @@ ipcMain.handle('pet:get-bootstrap', async () => ({
   assetsUrl: endpoint(dshUrl, '/whale-girl/assets/characters/whale-girl'),
 }))
 ipcMain.handle('pet:get-manifest', () => readJson('/whale-girl/assets/manifest.json'))
+ipcMain.handle('pet:get-config', () => readJson('/whale-girl/config'))
 ipcMain.handle('pet:refresh', refresh)
 ipcMain.handle('pet:interact', async (_event, action) => {
   if (!['feed', 'play'].includes(action)) throw new Error('不支持的互动方式')
@@ -202,6 +208,18 @@ ipcMain.on('pet:drag-move', (_event, point) => {
 ipcMain.on('pet:drag-end', () => {
   dragOrigin = null
   saveWindowState()
+})
+// 游走：沿屏幕水平移动窗口（宠物在窗口内视觉随窗口移动）。dx 为本次位移（px）；
+// 返回 { moved: false } 表示已顶到工作区边缘（渲染端据此翻转方向）。
+ipcMain.handle('pet:walk-move', (_event, dx) => {
+  if (mainWindow === null || !Number.isFinite(dx) || dx === 0) return { moved: false }
+  const [x, y] = mainWindow.getPosition()
+  const targetX = Math.round(x + dx)
+  const display = screen.getDisplayNearestPoint({ x: targetX, y })
+  const area = display.workArea
+  const clamped = Math.min(area.x + area.width - WINDOW_WIDTH, Math.max(area.x, targetX))
+  mainWindow.setPosition(clamped, y)
+  return { moved: clamped !== x }
 })
 ipcMain.on('pet:quit', () => app.quit())
 
