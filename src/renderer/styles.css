@@ -35,6 +35,8 @@ body { user-select: none; }
   width: 128px;
   height: 128px;
   background-repeat: no-repeat;
+  background-image: url("offline.png");
+  background-size: 128px 128px;
   background-position: 0 0;
   image-rendering: auto;
   transform-origin: 50% 50%;

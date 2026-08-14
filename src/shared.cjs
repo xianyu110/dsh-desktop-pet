@@ -6,12 +6,11 @@ function linuxDisplayBackend(env = process.env) {
   if (env.DSH_DESKTOP_PET_OZONE === 'x11' || env.DSH_DESKTOP_PET_OZONE === 'wayland') {
     return env.DSH_DESKTOP_PET_OZONE
   }
-  // Wayland compositors do not let clients position their own top-level windows.
-  // The pet needs that capability for dragging and walking, so prefer XWayland
-  // when the session exposes DISPLAY. Native Wayland remains a usable stationary
-  // fallback on systems without XWayland.
+  // Prefer the session's native backend. Wayland can delegate interactive
+  // movement to its compositor; forcing XWayland makes transparent windows
+  // invisible on some KDE/KWin configurations.
   if (env.XDG_SESSION_TYPE === 'wayland' || env.WAYLAND_DISPLAY) {
-    return env.DISPLAY ? 'x11' : 'wayland'
+    return 'wayland'
   }
   return 'x11'
 }

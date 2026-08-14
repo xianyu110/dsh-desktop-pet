@@ -16,7 +16,7 @@ test('accepts loopback DSH URLs and rejects remote hosts', () => {
 })
 
 test('selects a Linux display backend that preserves desktop movement', () => {
-  assert.equal(linuxDisplayBackend({ XDG_SESSION_TYPE: 'wayland', WAYLAND_DISPLAY: 'wayland-0', DISPLAY: ':0' }), 'x11')
+  assert.equal(linuxDisplayBackend({ XDG_SESSION_TYPE: 'wayland', WAYLAND_DISPLAY: 'wayland-0', DISPLAY: ':0' }), 'wayland')
   assert.equal(linuxDisplayBackend({ XDG_SESSION_TYPE: 'wayland', WAYLAND_DISPLAY: 'wayland-0' }), 'wayland')
   assert.equal(linuxDisplayBackend({ XDG_SESSION_TYPE: 'x11', DISPLAY: ':0' }), 'x11')
   assert.equal(linuxDisplayBackend({ DSH_DESKTOP_PET_OZONE: 'wayland', DISPLAY: ':0' }), 'wayland')

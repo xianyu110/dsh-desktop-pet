@@ -14,16 +14,14 @@ const RETRY_MAX_MS = 15000
 const PRESENCE_TTL_MS = 45000
 const PRESENCE_INTERVAL_MS = 15000
 
-if (process.platform === 'linux') {
-  const backend = linuxDisplayBackend()
-  app.commandLine.appendSwitch('ozone-platform', backend)
+const displayBackend = process.platform === 'linux' ? linuxDisplayBackend() : null
+
+if (displayBackend !== null) {
+  app.commandLine.appendSwitch('ozone-platform', displayBackend)
   // Transparent, always-on-top Electron windows hit unstable GPU paths on
   // several Mesa/NVIDIA + compositor combinations. This UI is a small sprite
   // surface, so software compositing is both sufficient and more portable.
   app.disableHardwareAcceleration()
-  if (backend === 'wayland') {
-    console.warn('dsh-desktop-pet: XWayland is unavailable; desktop walking and window dragging depend on compositor support')
-  }
 }
 
 function cliValue(name) {
@@ -85,7 +83,7 @@ function createWindow() {
     resizable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
-    show: false,
+    show: true,
     hasShadow: false,
     backgroundColor: '#00000000',
     webPreferences: {
@@ -99,7 +97,6 @@ function createWindow() {
   else mainWindow.setAlwaysOnTop(true)
   mainWindow.setVisibleOnAllWorkspaces(true)
   mainWindow.loadFile(join(__dirname, 'renderer', 'index.html'))
-  mainWindow.once('ready-to-show', () => mainWindow.showInactive())
   if (capturePath !== undefined) {
     mainWindow.webContents.once('did-finish-load', () => {
       setTimeout(async () => {
@@ -191,10 +188,21 @@ async function createTray() {
 ipcMain.handle('pet:get-bootstrap', async () => ({
   dshUrl,
   assetsUrl: endpoint(dshUrl, '/whale-girl/assets/characters/whale-girl'),
+  canProgrammaticallyMove: displayBackend !== 'wayland',
 }))
-ipcMain.handle('pet:get-manifest', () => readJson('/whale-girl/assets/manifest.json'))
-ipcMain.handle('pet:get-config', () => readJson('/whale-girl/config'))
-ipcMain.handle('pet:refresh', refresh)
+// DSH is allowed to start after the companion. Bootstrap reads therefore use
+// null as the offline result instead of rejecting across IPC (Electron logs
+// every rejected handler as an application error). The connection loop keeps
+// the throwing refresh path so retry/backoff and connection status still work.
+ipcMain.handle('pet:get-manifest', async () => {
+  try { return await readJson('/whale-girl/assets/manifest.json') } catch { return null }
+})
+ipcMain.handle('pet:get-config', async () => {
+  try { return await readJson('/whale-girl/config') } catch { return null }
+})
+ipcMain.handle('pet:refresh', async () => {
+  try { return await refresh() } catch { return null }
+})
 ipcMain.handle('pet:interact', async (_event, action) => {
   if (!['feed', 'play'].includes(action)) throw new Error('不支持的互动方式')
   const response = await fetch(endpoint(dshUrl, '/whale-girl/interact'), {
@@ -210,10 +218,12 @@ ipcMain.on('pet:set-click-through', (_event, ignored) => {
 })
 ipcMain.on('pet:drag-start', (_event, point) => {
   if (mainWindow === null || !Number.isFinite(point?.x) || !Number.isFinite(point?.y)) return
+  if (displayBackend === 'wayland') return
   const [windowX, windowY] = mainWindow.getPosition()
   dragOrigin = { pointerX: point.x, pointerY: point.y, windowX, windowY }
 })
 ipcMain.on('pet:drag-move', (_event, point) => {
+  if (displayBackend === 'wayland') return
   if (mainWindow === null || dragOrigin === null || !Number.isFinite(point?.x) || !Number.isFinite(point?.y)) return
   const targetX = Math.round(dragOrigin.windowX + point.x - dragOrigin.pointerX)
   const targetY = Math.round(dragOrigin.windowY + point.y - dragOrigin.pointerY)
@@ -230,6 +240,7 @@ ipcMain.on('pet:drag-end', () => {
 // 游走：沿屏幕水平移动窗口（宠物在窗口内视觉随窗口移动）。dx 为本次位移（px）；
 // 返回 { moved: false } 表示已顶到工作区边缘（渲染端据此翻转方向）。
 ipcMain.handle('pet:walk-move', (_event, dx) => {
+  if (displayBackend === 'wayland') return { moved: false, unavailable: true }
   if (mainWindow === null || !Number.isFinite(dx) || dx === 0) return { moved: false }
   const [x, y] = mainWindow.getPosition()
   const targetX = Math.round(x + dx)

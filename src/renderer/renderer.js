@@ -290,6 +290,10 @@ function walkStep(t) {
   const dx = walkDir * (w.speedPxPerSec ?? 45) * dt
   window.desktopPet.walkMove(dx).then(result => {
     if (!walking) return
+    if (result?.unavailable === true) {
+      stopWalk()
+      return
+    }
     if (result !== null && typeof result === 'object' && result.moved === false) {
       walkDir = -walkDir
       flip = -flip
@@ -453,6 +457,7 @@ window.desktopPet.onConnection(value => {
 
 async function loadCharacter() {
   manifest = await window.desktopPet.manifest()
+  if (manifest === null) throw new Error('DSH 尚未启动')
   character = manifest.characters?.[manifest.default]
   if (!character?.states) throw new Error('鲸鱼娘资源清单无效')
   if (typeof cfg.size !== 'number') stageSize = desktopStage(character.meta?.stageSize ?? 128)
