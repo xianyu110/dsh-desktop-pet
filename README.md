@@ -9,8 +9,9 @@
 
 ```shell
 npm i -g @deepseek-ai/dsh
-dsh plugin --profile web add "github:xiaoshihou514/whale-girl#main" # 安装为多客户端适配的分支
-# 随后在发行版页面下载 AppImage、RPM 或 Windows 版本：
+dsh plugin --profile web add "github:vlln/whale-girl#main"
+
+# 随后在发行版页面下载 AppImage、RPM 或 Windows 安装包：
 # https://github.com/xiaoshihou514/dsh-desktop-pet/releases
 ```
 
