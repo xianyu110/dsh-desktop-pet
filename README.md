@@ -13,10 +13,6 @@ dsh plugin --profile web add "github:xiaoshihou514/whale-girl#main" # 安装为�
 # https://github.com/xiaoshihou514/dsh-desktop-pet/releases
 ```
 
-Linux Wayland 会在 XWayland 可用时自动使用它，以支持拖拽和自动散步。纯 Wayland
-环境仍可运行；若合成器禁止窗口自行定位，拖拽和散步可能受限。可通过
-`DSH_DESKTOP_PET_OZONE=wayland` 或 `DSH_DESKTOP_PET_OZONE=x11` 手动选择。
-
 点个星标吧~这对我真的很重要
 
 许可：MIT（代码纯AI生成）
