@@ -209,6 +209,7 @@ const bubbleZone = document.querySelector('#bubble-zone')
 const MODES = ['all', 'one', 'count']
 const MODE_GLYPH = { all: '≡', one: '▣', count: '●' }
 const SESSION_POLL_MS = 2000
+const DONE_HIDE_MS = 60000 // 已完成会话展示窗口：完成后 1 分钟内可见（完成反馈），超时隐藏
 const TOOL_LABELS = {
   bash: '运行命令', pwsh: '运行命令', powershell: '运行命令', shell: '运行命令', cmd: '运行命令',
   edit: '编辑文件', write: '写文件', read: '读取文件', glob: '查找文件', grep: '搜索内容',
@@ -221,6 +222,8 @@ let oneIndex = 0
 let lastCount = -1
 let lastWaitingIds = new Set()
 let sessionPollTimer = null
+let doneSince = new Map() // 会话 id → 变为 done 的时刻（驱动 DONE_HIDE_MS 隐藏）
+let shownIds = new Set()  // 最近一次渲染展示的会话 id（轮询据此判断可见性变化）
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
@@ -235,6 +238,12 @@ function sessionRank(s) {
 }
 function sortSessions(list) {
   return [...list].sort((a, b) => sessionRank(a) - sessionRank(b) || (b.since ?? 0) - (a.since ?? 0))
+}
+
+// 展示列表：已完成会话仅在 DONE_HIDE_MS 窗口内可见（完成反馈），超时隐藏
+function visibleSessions() {
+  const now = Date.now()
+  return sessions.filter(s => s.activity !== 'done' || now - (doneSince.get(s.id) ?? now) <= DONE_HIDE_MS)
 }
 
 function activityLabel(s) {
@@ -278,7 +287,7 @@ function bindModeBadge() {
 function renderAllMode(changedIds) {
   bubbleZone.dataset.mode = 'all'
   bubbleZone.innerHTML = `<div class="bubble-toolbar"><button class="mode-badge" title="切换显示模式" data-mode="all">${MODE_GLYPH.all}</button></div>`
-    + `<div class="bubble-stack">${sessions.map(s => cardHTML(s, changedIds.has(s.id))).join('')}</div>`
+    + `<div class="bubble-stack">${visibleSessions().map(s => cardHTML(s, changedIds.has(s.id))).join('')}</div>`
   bindModeBadge()
 }
 
@@ -303,10 +312,11 @@ function animateDeckNext(deck) {
   }).catch(() => {})
 }
 
-// 单会话模式的循环池：活跃会话优先（思考/工具/等待），全部完成时回退全部会话
+// 单会话模式的循环池：活跃会话优先（思考/工具/等待），全部完成时回退可见会话
 function onePool() {
-  const active = sessions.filter(isActive)
-  return active.length > 0 ? active : sessions
+  const visible = visibleSessions()
+  const active = visible.filter(isActive)
+  return active.length > 0 ? active : visible
 }
 function onePoolLength() { return Math.max(1, onePool().length) }
 
@@ -335,11 +345,12 @@ function renderOneMode(changedIds) {
 
 function renderCountMode() {
   bubbleZone.dataset.mode = 'count'
-  const count = sessions.filter(isActive).length
-  const waiting = sessions.some(isWaiting)
-  const dots = sessions.map(s => `<span class="status-dot ${activityLabel(s).cls}" title="${escapeHtml(s.title ?? '未命名会话')}：${escapeHtml(activityLabel(s).text)}"></span>`).join('')
+  const visible = visibleSessions()
+  const count = visible.filter(isActive).length
+  const waiting = visible.some(isWaiting)
+  const dots = visible.map(s => `<span class="status-dot ${activityLabel(s).cls}" title="${escapeHtml(s.title ?? '未命名会话')}：${escapeHtml(activityLabel(s).text)}"></span>`).join('')
   bubbleZone.innerHTML = `<div class="bubble-toolbar"><button class="mode-badge" title="切换显示模式" data-mode="count">${MODE_GLYPH.count}</button>`
-    + `<button class="bubble-count" data-waiting="${waiting}" data-zero="${sessions.length === 0}" aria-label="${count} 个活跃会话，点击展开" title="会话状态，点击展开">${dots}</button></div>`
+    + `<button class="bubble-count" data-waiting="${waiting}" data-zero="${visible.length === 0}" aria-label="${count} 个活跃会话，点击展开" title="会话状态，点击展开">${dots}</button></div>`
   bindModeBadge()
   const dot = bubbleZone.querySelector('.bubble-count')
   dot.addEventListener('click', () => setMode('one'))
@@ -353,19 +364,22 @@ function renderCountMode() {
 }
 
 function renderBubbles(changedIds = new Set()) {
-  if (!connected || sessions.length === 0) {
+  const visible = visibleSessions()
+  if (!connected || visible.length === 0) {
     bubbleZone.hidden = true
     document.body.classList.remove('has-bubbles')
+    shownIds = new Set()
     lastWaitingIds = new Set() // 断线/清空后复位，重连时新等待会话能再次自动聚焦
     return
   }
+  shownIds = new Set(visible.map(s => s.id))
   bubbleZone.hidden = false
   document.body.classList.add('has-bubbles')
-  bubbleZone.dataset.waiting = String(sessions.some(isWaiting))
+  bubbleZone.dataset.waiting = String(visible.some(isWaiting))
   // 新模式等待批准的会话：自动聚焦（提醒用户），但不打断用户手动切换
-  const waitingIds = new Set(sessions.filter(isWaiting).map(s => s.id))
+  const waitingIds = new Set(visible.filter(isWaiting).map(s => s.id))
   if ([...waitingIds].some(id => !lastWaitingIds.has(id))) {
-    const firstWaiting = sessions.findIndex(isWaiting)
+    const firstWaiting = visible.findIndex(isWaiting)
     if (firstWaiting !== -1) oneIndex = firstWaiting
   }
   lastWaitingIds = waitingIds
@@ -382,10 +396,23 @@ async function pollSessions() {
   try {
     const list = await window.desktopPet.sessions()
     if (!Array.isArray(list)) return
+    const now = Date.now()
     const prev = new Map(sessions.map(s => [s.id, s.activity]))
     const next = sortSessions(list)
+    // 维护 done 计时：进入 done 记时刻；离开 done 或不在列表则清除（防 Map 无限增长）
+    const nextIds = new Set(next.map(s => s.id))
+    for (const id of doneSince.keys()) if (!nextIds.has(id)) doneSince.delete(id)
+    for (const s of next) {
+      if (s.activity === 'done') { if (!doneSince.has(s.id)) doneSince.set(s.id, now) }
+      else doneSince.delete(s.id)
+    }
     const changedIds = new Set(next.filter(s => prev.get(s.id) !== s.activity).map(s => s.id))
-    if (changedIds.size === 0 && sessions.length === next.length && sessions.every((s, i) => s.id === next[i].id)) return
+    // 可见性变化（含已完成会话跨过 DONE_HIDE_MS 隐藏窗口）也要触发重渲染
+    const isVisible = s => s.activity !== 'done' || now - (doneSince.get(s.id) ?? now) <= DONE_HIDE_MS
+    const nextVisible = new Set(next.filter(isVisible).map(s => s.id))
+    const visibilityChanged = nextVisible.size !== shownIds.size
+      || [...nextVisible].some(id => !shownIds.has(id))
+    if (changedIds.size === 0 && !visibilityChanged) return
     sessions = next
     renderBubbles(changedIds)
   } catch {}
