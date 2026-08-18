@@ -315,16 +315,17 @@ function renderOneMode(changedIds) {
   if (pool.length === 0) return
   if (oneIndex >= pool.length) oneIndex = 0
   const front = pool[oneIndex]
-  const behind = [
-    pool[(oneIndex + 1) % pool.length],
-    pool[(oneIndex + 2) % pool.length],
-  ]
+  const hasBehind = pool.length > 1 // 只有一个活跃会话时不露背后卡片
+  const behind = hasBehind
+    ? [pool[(oneIndex + 1) % pool.length], pool[(oneIndex + 2) % pool.length]]
+    : []
   bubbleZone.innerHTML = `<button class="mode-badge" title="切换显示模式" data-mode="one">${MODE_GLYPH.one}</button>`
-    + `<div class="bubble-deck">`
+    + `<div class="bubble-deck${hasBehind ? '' : ' deck-single'}">`
     + behind.map((s, i) => `<div class="session-card deck-behind" style="top:${8 + i * 6}px;z-index:${2 - i}" data-done="${s.activity === 'done'}">${cardBody(s)}</div>`).join('')
-    + `<div class="session-card deck-front${changedIds.has(front.id) ? ' s-flash' : ''}" style="top:20px" data-waiting="${isWaiting(front)}" data-done="${front.activity === 'done'}">${cardBody(front)}</div>`
+    + `<div class="session-card deck-front${changedIds.has(front.id) ? ' s-flash' : ''}" style="top:${hasBehind ? 20 : 0}px" data-waiting="${isWaiting(front)}" data-done="${front.activity === 'done'}">${cardBody(front)}</div>`
     + `</div>`
   bindModeBadge()
+  if (!hasBehind) return // 单会话：无可切换目标，不绑点击
   bubbleZone.querySelector('.bubble-deck').addEventListener('click', event => {
     if (event.target.closest('.mode-badge') !== null) return
     animateDeckNext(bubbleZone.querySelector('.bubble-deck'))

@@ -275,6 +275,9 @@ body.has-bubbles .pulse { display: none; }
 /* ---- 模式二：单个会话（能看到后面的卡片） ---- */
 .bubble-deck { position: relative; width: 100%; height: 74px; }
 .bubble-deck .session-card { position: absolute; left: 0; right: 0; }
+/* 单会话：不露背后卡片，卡片走正常文档流 */
+.bubble-deck.deck-single { height: auto; }
+.bubble-deck.deck-single .session-card { position: static; }
 .deck-behind { pointer-events: none; opacity: .5; }
 .deck-front { z-index: 3; cursor: pointer; }
 .deck-front:hover { border-color: var(--border-strong); }
