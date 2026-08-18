@@ -17,7 +17,7 @@ dsh plugin --profile web add "github:vlln/whale-girl#main"
 
 点个星标吧~这对我真的很重要
 
-许可：MIT（代码纯AI生成）
+许可：MIT
 
 也看看我其他的插件吧～
 
