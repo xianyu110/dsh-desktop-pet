@@ -1,18 +1,19 @@
 :root {
   color-scheme: dark;
-  /* 专业暗色面板（对齐 whale-girl client 状态卡的玻璃风格） */
-  --panel: rgb(26 31 42 / .94);
-  --panel-soft: rgb(33 39 53 / .92);
-  --panel-deep: rgb(18 22 31 / .97);
-  --border: rgb(255 255 255 / .10);
-  --border-strong: rgb(255 255 255 / .18);
-  --text: #e9edf4;
-  --text-dim: #9aa6b5;
-  --text-faint: #66717f;
-  --accent-blue: #6aa8ff;   /* 思考中 */
-  --accent-amber: #f0b45c;  /* 工具调用 */
-  --accent-red: #ff6b6b;    /* 等待批准 */
-  --accent-green: #5fd38c;  /* 已完成 */
+  /* DSH 式中性暗色层级：颜色只负责表达状态，不负责装饰。 */
+  --panel: rgb(37 38 40 / .97);
+  --panel-soft: rgb(45 46 49 / .98);
+  --panel-deep: rgb(27 28 30 / .98);
+  --border: rgb(255 255 255 / .09);
+  --border-strong: rgb(255 255 255 / .16);
+  --text: #f1f2f4;
+  --text-dim: #b3b6bc;
+  --text-faint: #7d8189;
+  --accent-blue: #76a7ff;
+  --accent-amber: #e9a84c;
+  --accent-red: #f08a63;
+  --accent-green: #68c98c;
+  --state: var(--text-faint);
   /* 字体精修：西文 Segoe UI Variable → 中文苹方/雅黑；数字用等宽制表位 */
   --font: "Segoe UI Variable Text", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
   --mono: "Cascadia Mono", "SF Mono", Consolas, monospace;
@@ -83,32 +84,61 @@ body { user-select: none; font-family: var(--font); font-variant-numeric: tabula
   z-index: 3;
   top: 5px;
   right: 0;
-  width: 176px;
-  min-height: 66px;
-  padding: 10px 12px 9px;
+  width: 184px;
+  min-height: 72px;
+  padding: 11px 13px 10px 16px;
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 14px 14px 4px 14px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
-  backdrop-filter: blur(12px) saturate(1.2);
+  border-radius: 13px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 34%), 0 1px 0 rgb(255 255 255 / .035) inset;
+  backdrop-filter: blur(18px);
   opacity: 0;
   transform: translateY(5px) scale(.98);
   transform-origin: 90% 100%;
   transition: opacity 130ms ease, transform 160ms cubic-bezier(.2,.8,.2,1);
   pointer-events: none;
+  overflow: hidden;
 }
+.pulse::before {
+  content: "";
+  position: absolute;
+  inset: 9px auto 9px 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--state);
+}
+.pet[data-state="think"] { --state: var(--accent-blue); }
+.pet[data-state="working"] { --state: var(--accent-amber); }
+.pet[data-state="wait"], .pet[data-state="error"] { --state: var(--accent-red); }
+.pet[data-state="celebrate"], .pet[data-state="welcome"], .pet[data-state="joy"] { --state: var(--accent-green); }
 body.has-bubbles .pulse { display: none; }
 .pet:hover .pulse,
 .pet[data-attention="true"] .pulse { opacity: 1; transform: none; }
 .connection {
-  display: block;
-  color: #7fb2ff;
-  font: 600 9.5px/1.2 var(--mono);
-  text-transform: uppercase;
-  letter-spacing: .12em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-faint);
+  font: 600 10px/1.2 var(--font);
+  letter-spacing: .01em;
 }
-.pulse strong { display: block; margin-top: 3px; font-size: 13px; line-height: 1.3; font-weight: 600; }
+.connection::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border: 1.5px solid var(--state);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--state) 30%, transparent);
+}
+.pet[data-state="think"] .connection::before { border-top-color: transparent; animation: status-spin .8s linear infinite; }
+.pet[data-state="working"] .connection::before { border-radius: 2px; background: var(--state); }
+.pet[data-state="wait"] .connection::before,
+.pet[data-state="error"] .connection::before { background: var(--state); animation: status-breathe 1.4s ease-in-out infinite; }
+.pet[data-state="celebrate"] .connection::before,
+.pet[data-state="welcome"] .connection::before { background: var(--state); }
+.pulse strong { display: block; margin-top: 5px; font-size: 13px; line-height: 1.3; font-weight: 650; letter-spacing: -.01em; }
 .pulse .detail {
   display: block;
   margin-top: 2px;
@@ -153,7 +183,7 @@ body.has-bubbles .pulse { display: none; }
   border-radius: 50%;
   color: var(--text-dim);
   background: var(--panel-deep);
-  box-shadow: 0 3px 9px rgb(0 0 0 / 30%);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 28%);
   cursor: pointer;
   font: 15px/27px "Segoe UI Symbol", "Segoe UI", sans-serif;
 }
@@ -171,8 +201,8 @@ body.has-bubbles .pulse { display: none; }
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px 12px 3px 12px;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 30%);
+  border-radius: 11px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
   font-size: 11.5px;
   line-height: 1.4;
 }
@@ -180,17 +210,30 @@ body.has-bubbles .pulse { display: none; }
 /* ==================== 会话气泡区（三模式） ==================== */
 .bubble-zone {
   position: absolute;
-  top: 10px;
+  top: auto;
+  bottom: 150px;
   right: 16px;
-  width: 190px;
+  width: 216px;
   z-index: 8;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 5px;
+  flex-direction: column-reverse;
+  align-items: stretch;
+  gap: 7px;
   pointer-events: none;
 }
 .bubble-zone[hidden] { display: none; }
+
+/* Controls own a dedicated row. Cards never share its hit area. */
+.bubble-toolbar {
+  width: 100%;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  pointer-events: none;
+}
+.bubble-toolbar > * { pointer-events: auto; }
 
 /* 模式切换小徽章 */
 .mode-badge {
@@ -199,9 +242,9 @@ body.has-bubbles .pulse { display: none; }
   height: 21px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 7px;
   color: var(--text-faint);
-  background: var(--panel-deep);
+  background: var(--panel);
   font: 600 11px/19px "Segoe UI Symbol", "Segoe UI", sans-serif;
   text-align: center;
   cursor: pointer;
@@ -210,19 +253,59 @@ body.has-bubbles .pulse { display: none; }
 
 /* 会话卡片（全部/单个模式共用） */
 .session-card {
+  --card-state: var(--text-faint);
   pointer-events: auto;
+  position: relative;
   width: 100%;
-  padding: 7px 10px;
+  min-height: 50px;
+  padding: 7px 30px 7px 14px;
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px 10px 3px 10px;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 28%);
-  backdrop-filter: blur(12px) saturate(1.2);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 28%), 0 1px 0 rgb(255 255 255 / .035) inset;
+  backdrop-filter: blur(18px);
+  overflow: hidden;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+.session-card::before {
+  content: "";
+  position: absolute;
+  inset: 8px auto 8px 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--card-state);
+}
+.session-card::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--card-state);
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+.session-card[data-activity="thinking"] { --card-state: var(--accent-blue); }
+.session-card[data-activity="thinking"]::after { border-top-color: transparent; animation: status-spin .8s linear infinite; }
+.session-card[data-activity="tool"] { --card-state: var(--accent-amber); }
+.session-card[data-activity="tool"]::after { border-radius: 2px; background: var(--card-state); border-color: var(--card-state); }
+.session-card[data-activity="waiting"] { --card-state: var(--accent-red); }
+.session-card[data-activity="waiting"]::after { background: var(--card-state); animation: status-breathe 1.4s ease-in-out infinite; }
+.session-card[data-activity="done"] { --card-state: var(--accent-green); }
+.session-card[data-activity="done"]::after {
+  content: "✓";
+  width: 14px;
+  height: 14px;
+  border: 0;
+  color: var(--card-state);
+  font: 700 12px/14px var(--font);
+  text-align: center;
 }
 .session-card .s-title {
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 620;
   line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
@@ -232,73 +315,92 @@ body.has-bubbles .pulse { display: none; }
   display: flex;
   align-items: center;
   gap: 5px;
-  margin-top: 3px;
+  margin-top: 4px;
   font-size: 10.5px;
   line-height: 1.2;
   color: var(--text-dim);
 }
-.s-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
-.dot-thinking { background: var(--accent-blue); box-shadow: 0 0 6px rgb(106 168 255 / 80%); }
-.dot-tool { background: var(--accent-amber); box-shadow: 0 0 5px rgb(240 180 92 / 60%); }
-.dot-waiting { background: var(--accent-red); box-shadow: 0 0 6px rgb(255 107 107 / 80%); }
-.dot-done { background: var(--text-faint); }
+.s-dot { width: 5px; height: 5px; border-radius: 50%; flex: none; background: var(--card-state); opacity: .75; }
+.dot-thinking, .dot-tool, .dot-waiting, .dot-done { background: var(--card-state); }
 
 /* 活动变化瞬间的闪光（工具调用/思考切换的动画反馈） */
 .session-card.s-flash { animation: card-flash .5s ease-out; }
 @keyframes card-flash {
-  0% { border-color: rgb(106 168 255 / 60%); box-shadow: 0 0 0 2px rgb(106 168 255 / 25%), 0 6px 18px rgb(0 0 0 / 28%); }
+  0% { border-color: color-mix(in srgb, var(--card-state) 55%, transparent); background: var(--panel-soft); transform: translateY(-1px); }
   100% { border-color: var(--border); }
 }
 
 /* 等待批准：红色边框 + 呼吸光晕（全部/单个/数量三模式共用） */
 .session-card[data-waiting="true"] {
-  border-color: rgb(255 107 107 / 55%);
-  animation: waiting-pulse 1.6s ease-in-out infinite;
+  border-color: color-mix(in srgb, var(--accent-red) 36%, transparent);
 }
 /* 已完成会话：置灰降噪 */
-.session-card[data-done="true"] { opacity: .55; }
+.session-card[data-done="true"] { opacity: .72; }
 @keyframes waiting-pulse {
-  0%, 100% { box-shadow: 0 0 0 1px rgb(255 107 107 / 25%), 0 6px 18px rgb(0 0 0 / 30%); }
-  50% { box-shadow: 0 0 0 3px rgb(255 107 107 / 18%), 0 6px 18px rgb(0 0 0 / 30%); }
+  0%, 100% { border-color: color-mix(in srgb, var(--accent-red) 30%, transparent); }
+  50% { border-color: color-mix(in srgb, var(--accent-red) 58%, transparent); }
 }
 
+@keyframes status-spin { to { transform: translateY(-50%) rotate(360deg); } }
+.connection::before { transform: none; }
+.pet[data-state="think"] .connection::before { animation-name: connection-spin; }
+@keyframes connection-spin { to { transform: rotate(360deg); } }
+@keyframes status-breathe { 50% { opacity: .35; } }
+
 /* ---- 模式一：全部会话（竖叠） ---- */
-.bubble-stack { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-.bubble-more {
-  font-size: 10px;
-  color: var(--text-faint);
-  text-align: right;
-  padding-right: 2px;
-  letter-spacing: .02em;
+.bubble-stack {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 5px;
+  width: 100%;
 }
 
 /* ---- 模式二：单个会话（能看到后面的卡片） ---- */
 .bubble-deck { position: relative; width: 100%; height: 74px; }
 .bubble-deck .session-card { position: absolute; left: 0; right: 0; }
+.bubble-zone[data-mode="one"] .deck-front { background: rgb(37 38 40 / .66); }
+.bubble-zone[data-mode="one"] .deck-behind { background: rgb(37 38 40 / .38); }
 /* 单会话：不露背后卡片，卡片走正常文档流 */
 .bubble-deck.deck-single { height: auto; }
 .bubble-deck.deck-single .session-card { position: static; }
-.deck-behind { pointer-events: none; opacity: .5; }
+.deck-behind { pointer-events: none; opacity: .46; }
 .deck-front { z-index: 3; cursor: pointer; }
-.deck-front:hover { border-color: var(--border-strong); }
+.deck-front:hover { border-color: var(--border-strong); background: var(--panel-soft); transform: translateY(-1px); }
+.bubble-zone[data-mode="one"] .deck-front:hover { background: rgb(45 46 49 / .76); }
 
 /* ---- 模式三：会话数量圆点 ---- */
 .bubble-count {
   pointer-events: auto;
-  width: 27px;
-  height: 27px;
-  padding: 0;
+  width: auto;
+  min-width: 30px;
+  max-width: 178px;
+  height: 30px;
+  padding: 0 9px;
   border: 1px solid var(--border-strong);
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 5px;
   color: var(--text);
   background: var(--panel-deep);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 35%);
-  font: 700 12px/1 var(--mono);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 30%);
   cursor: pointer;
 }
-.bubble-count:hover { border-color: rgb(106 168 255 / 55%); }
+.status-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--text-faint);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .22);
+}
+.bubble-count .dot-thinking { background: var(--accent-blue); }
+.bubble-count .dot-tool { background: var(--accent-amber); border-radius: 2px; }
+.bubble-count .dot-waiting { background: var(--accent-red); animation: status-breathe 1.4s ease-in-out infinite; }
+.bubble-count .dot-done { background: var(--accent-green); opacity: .72; }
+.bubble-count:hover { border-color: var(--border-strong); background: var(--panel-soft); }
 .bubble-count[data-waiting="true"] {
   border-color: rgb(255 107 107 / 65%);
   color: #ffd7d7;

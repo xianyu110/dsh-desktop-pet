@@ -208,7 +208,6 @@ function showBubble(text) {
 const bubbleZone = document.querySelector('#bubble-zone')
 const MODES = ['all', 'one', 'count']
 const MODE_GLYPH = { all: '≡', one: '▣', count: '●' }
-const ALL_MAX_VISIBLE = 3
 const SESSION_POLL_MS = 2000
 const TOOL_LABELS = {
   bash: '运行命令', pwsh: '运行命令', powershell: '运行命令', shell: '运行命令', cmd: '运行命令',
@@ -257,7 +256,11 @@ function cardBody(s) {
 }
 
 function cardHTML(s, changed) {
-  return `<div class="session-card${changed ? ' s-flash' : ''}" data-waiting="${isWaiting(s)}" data-done="${s.activity === 'done'}">${cardBody(s)}</div>`
+  const kind = s.activity === 'thinking' ? 'thinking'
+    : s.activity === 'waiting' ? 'waiting'
+      : s.activity === 'done' ? 'done'
+        : typeof s.activity === 'string' && s.activity.startsWith('tool:') ? 'tool' : 'idle'
+  return `<div class="session-card${changed ? ' s-flash' : ''}" data-activity="${kind}" data-waiting="${isWaiting(s)}" data-done="${s.activity === 'done'}">${cardBody(s)}</div>`
 }
 
 function setMode(mode) {
@@ -273,12 +276,9 @@ function bindModeBadge() {
 }
 
 function renderAllMode(changedIds) {
-  const visible = sessions.slice(0, ALL_MAX_VISIBLE)
-  const more = sessions.length - visible.length
-  bubbleZone.innerHTML = `<button class="mode-badge" title="切换显示模式" data-mode="all">${MODE_GLYPH.all}</button>`
-    + `<div class="bubble-stack">${visible.map(s => cardHTML(s, changedIds.has(s.id))).join('')}`
-    + (more > 0 ? `<div class="bubble-more">+${more} 更多</div>` : '')
-    + `</div>`
+  bubbleZone.dataset.mode = 'all'
+  bubbleZone.innerHTML = `<div class="bubble-toolbar"><button class="mode-badge" title="切换显示模式" data-mode="all">${MODE_GLYPH.all}</button></div>`
+    + `<div class="bubble-stack">${sessions.map(s => cardHTML(s, changedIds.has(s.id))).join('')}</div>`
   bindModeBadge()
 }
 
@@ -311,6 +311,7 @@ function onePool() {
 function onePoolLength() { return Math.max(1, onePool().length) }
 
 function renderOneMode(changedIds) {
+  bubbleZone.dataset.mode = 'one'
   const pool = onePool()
   if (pool.length === 0) return
   if (oneIndex >= pool.length) oneIndex = 0
@@ -319,7 +320,7 @@ function renderOneMode(changedIds) {
   const behind = hasBehind
     ? [pool[(oneIndex + 1) % pool.length], pool[(oneIndex + 2) % pool.length]]
     : []
-  bubbleZone.innerHTML = `<button class="mode-badge" title="切换显示模式" data-mode="one">${MODE_GLYPH.one}</button>`
+  bubbleZone.innerHTML = `<div class="bubble-toolbar"><button class="mode-badge" title="切换显示模式" data-mode="one">${MODE_GLYPH.one}</button></div>`
     + `<div class="bubble-deck${hasBehind ? '' : ' deck-single'}">`
     + behind.map((s, i) => `<div class="session-card deck-behind" style="top:${8 + i * 6}px;z-index:${2 - i}" data-done="${s.activity === 'done'}">${cardBody(s)}</div>`).join('')
     + `<div class="session-card deck-front${changedIds.has(front.id) ? ' s-flash' : ''}" style="top:${hasBehind ? 20 : 0}px" data-waiting="${isWaiting(front)}" data-done="${front.activity === 'done'}">${cardBody(front)}</div>`
@@ -333,10 +334,12 @@ function renderOneMode(changedIds) {
 }
 
 function renderCountMode() {
+  bubbleZone.dataset.mode = 'count'
   const count = sessions.filter(isActive).length
   const waiting = sessions.some(isWaiting)
-  bubbleZone.innerHTML = `<button class="mode-badge" title="切换显示模式" data-mode="count">${MODE_GLYPH.count}</button>`
-    + `<button class="bubble-count" data-waiting="${waiting}" data-zero="${count === 0}" title="活跃会话数，点击展开">${count}</button>`
+  const dots = sessions.map(s => `<span class="status-dot ${activityLabel(s).cls}" title="${escapeHtml(s.title ?? '未命名会话')}：${escapeHtml(activityLabel(s).text)}"></span>`).join('')
+  bubbleZone.innerHTML = `<div class="bubble-toolbar"><button class="mode-badge" title="切换显示模式" data-mode="count">${MODE_GLYPH.count}</button>`
+    + `<button class="bubble-count" data-waiting="${waiting}" data-zero="${sessions.length === 0}" aria-label="${count} 个活跃会话，点击展开" title="会话状态，点击展开">${dots}</button></div>`
   bindModeBadge()
   const dot = bubbleZone.querySelector('.bubble-count')
   dot.addEventListener('click', () => setMode('one'))

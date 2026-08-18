@@ -6,7 +6,7 @@ const { join } = require('node:path')
 const { endpoint, normalizeDshUrl, linuxDisplayBackend, validateSnapshot } = require('./shared.cjs')
 
 const WINDOW_WIDTH = 280
-const WINDOW_HEIGHT = 250
+const WINDOW_HEIGHT = 520
 const RETRY_MIN_MS = 1000
 const RETRY_MAX_MS = 15000
 // 桌面伴侣在场心跳（与 whale-girl src/presence.mjs 的 TTL/间隔契约一致）：
