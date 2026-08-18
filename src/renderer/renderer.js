@@ -202,6 +202,191 @@ function showBubble(text) {
   bubbleTimer = setTimeout(() => { bubble.hidden = true }, cfg.bubbleMs ?? 2500)
 }
 
+// ---- 会话气泡（/whale-girl/sessions：每会话 thinking / tool:<name> / waiting / done）----
+// 三种模式：all=全部竖叠 / one=单个+背后卡片（左键动画切下一个）/ count=数量圆点；
+// 任一会话等待批准时三模式都有红色提醒。模式持久化到 localStorage。
+const bubbleZone = document.querySelector('#bubble-zone')
+const MODES = ['all', 'one', 'count']
+const MODE_GLYPH = { all: '≡', one: '▣', count: '●' }
+const ALL_MAX_VISIBLE = 3
+const SESSION_POLL_MS = 2000
+const TOOL_LABELS = {
+  bash: '运行命令', pwsh: '运行命令', powershell: '运行命令', shell: '运行命令', cmd: '运行命令',
+  edit: '编辑文件', write: '写文件', read: '读取文件', glob: '查找文件', grep: '搜索内容',
+  webfetch: '浏览网页', browse: '浏览网页', fetch: '拉取数据',
+}
+
+let sessions = [] // 排序后的会话视图 [{ id, title, activity, since }]
+let bubbleMode = 'all'
+let oneIndex = 0
+let lastCount = -1
+let lastWaitingIds = new Set()
+let sessionPollTimer = null
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
+
+function isWaiting(s) { return s.activity === 'waiting' }
+function isActive(s) { return s.activity !== 'done' }
+function sessionRank(s) {
+  if (s.activity === 'waiting') return 0
+  if (s.activity === 'thinking' || (typeof s.activity === 'string' && s.activity.startsWith('tool:'))) return 1
+  return 2
+}
+function sortSessions(list) {
+  return [...list].sort((a, b) => sessionRank(a) - sessionRank(b) || (b.since ?? 0) - (a.since ?? 0))
+}
+
+function activityLabel(s) {
+  const a = s.activity
+  if (a === 'thinking') return { text: '思考中…', cls: 'dot-thinking' }
+  if (a === 'waiting') return { text: '等待你的批准', cls: 'dot-waiting' }
+  if (a === 'done') return { text: '已完成', cls: 'dot-done' }
+  if (typeof a === 'string' && a.startsWith('tool:')) {
+    const tool = a.slice(5)
+    return { text: TOOL_LABELS[tool] ?? `使用 ${tool}`, cls: 'dot-tool' }
+  }
+  return { text: String(a), cls: 'dot-done' }
+}
+
+function cardBody(s) {
+  const act = activityLabel(s)
+  return `<div class="s-title">${escapeHtml(s.title ?? '未命名会话')}</div>`
+    + `<div class="s-activity"><span class="s-dot ${act.cls}"></span>${act.text}</div>`
+}
+
+function cardHTML(s, changed) {
+  return `<div class="session-card${changed ? ' s-flash' : ''}" data-waiting="${isWaiting(s)}" data-done="${s.activity === 'done'}">${cardBody(s)}</div>`
+}
+
+function setMode(mode) {
+  bubbleMode = mode
+  try { localStorage.setItem('pet:bubble-mode', mode) } catch {}
+  renderBubbles()
+}
+
+function bindModeBadge() {
+  bubbleZone.querySelector('.mode-badge')?.addEventListener('click', () => {
+    setMode(MODES[(MODES.indexOf(bubbleMode) + 1) % MODES.length])
+  })
+}
+
+function renderAllMode(changedIds) {
+  const visible = sessions.slice(0, ALL_MAX_VISIBLE)
+  const more = sessions.length - visible.length
+  bubbleZone.innerHTML = `<button class="mode-badge" title="切换显示模式" data-mode="all">${MODE_GLYPH.all}</button>`
+    + `<div class="bubble-stack">${visible.map(s => cardHTML(s, changedIds.has(s.id))).join('')}`
+    + (more > 0 ? `<div class="bubble-more">+${more} 更多</div>` : '')
+    + `</div>`
+  bindModeBadge()
+}
+
+function animateDeckNext(deck) {
+  if (deck.dataset.animating === 'true') return // 连点防抖：动画中忽略
+  deck.dataset.animating = 'true'
+  const front = deck.querySelector('.deck-front')
+  const height = front.offsetHeight || 56
+  front.animate(
+    [{ transform: 'translateY(0)', opacity: 1 }, { transform: `translateY(-${height + 10}px)`, opacity: 0 }],
+    { duration: 170, easing: 'ease-in' },
+  ).finished.then(() => {
+    oneIndex = (oneIndex + 1) % onePoolLength()
+    renderBubbles()
+    const nextFront = bubbleZone.querySelector('.deck-front')
+    if (nextFront !== null) {
+      nextFront.animate(
+        [{ transform: 'translateY(12px)', opacity: 0 }, { transform: 'translateY(0)', opacity: 1 }],
+        { duration: 210, easing: 'ease-out' },
+      )
+    }
+  }).catch(() => {})
+}
+
+// 单会话模式的循环池：活跃会话优先（思考/工具/等待），全部完成时回退全部会话
+function onePool() {
+  const active = sessions.filter(isActive)
+  return active.length > 0 ? active : sessions
+}
+function onePoolLength() { return Math.max(1, onePool().length) }
+
+function renderOneMode(changedIds) {
+  const pool = onePool()
+  if (pool.length === 0) return
+  if (oneIndex >= pool.length) oneIndex = 0
+  const front = pool[oneIndex]
+  const behind = [
+    pool[(oneIndex + 1) % pool.length],
+    pool[(oneIndex + 2) % pool.length],
+  ]
+  bubbleZone.innerHTML = `<button class="mode-badge" title="切换显示模式" data-mode="one">${MODE_GLYPH.one}</button>`
+    + `<div class="bubble-deck">`
+    + behind.map((s, i) => `<div class="session-card deck-behind" style="top:${8 + i * 6}px;z-index:${2 - i}" data-done="${s.activity === 'done'}">${cardBody(s)}</div>`).join('')
+    + `<div class="session-card deck-front${changedIds.has(front.id) ? ' s-flash' : ''}" style="top:20px" data-waiting="${isWaiting(front)}" data-done="${front.activity === 'done'}">${cardBody(front)}</div>`
+    + `</div>`
+  bindModeBadge()
+  bubbleZone.querySelector('.bubble-deck').addEventListener('click', event => {
+    if (event.target.closest('.mode-badge') !== null) return
+    animateDeckNext(bubbleZone.querySelector('.bubble-deck'))
+  })
+}
+
+function renderCountMode() {
+  const count = sessions.filter(isActive).length
+  const waiting = sessions.some(isWaiting)
+  bubbleZone.innerHTML = `<button class="mode-badge" title="切换显示模式" data-mode="count">${MODE_GLYPH.count}</button>`
+    + `<button class="bubble-count" data-waiting="${waiting}" data-zero="${count === 0}" title="活跃会话数，点击展开">${count}</button>`
+  bindModeBadge()
+  const dot = bubbleZone.querySelector('.bubble-count')
+  dot.addEventListener('click', () => setMode('one'))
+  if (count !== lastCount) {
+    lastCount = count
+    dot.animate(
+      [{ transform: 'scale(1.4)' }, { transform: 'scale(1)' }],
+      { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' },
+    )
+  }
+}
+
+function renderBubbles(changedIds = new Set()) {
+  if (!connected || sessions.length === 0) {
+    bubbleZone.hidden = true
+    document.body.classList.remove('has-bubbles')
+    lastWaitingIds = new Set() // 断线/清空后复位，重连时新等待会话能再次自动聚焦
+    return
+  }
+  bubbleZone.hidden = false
+  document.body.classList.add('has-bubbles')
+  bubbleZone.dataset.waiting = String(sessions.some(isWaiting))
+  // 新模式等待批准的会话：自动聚焦（提醒用户），但不打断用户手动切换
+  const waitingIds = new Set(sessions.filter(isWaiting).map(s => s.id))
+  if ([...waitingIds].some(id => !lastWaitingIds.has(id))) {
+    const firstWaiting = sessions.findIndex(isWaiting)
+    if (firstWaiting !== -1) oneIndex = firstWaiting
+  }
+  lastWaitingIds = waitingIds
+  if (bubbleMode === 'count') renderCountMode()
+  else if (bubbleMode === 'one') renderOneMode(changedIds)
+  else renderAllMode(changedIds)
+}
+
+async function pollSessions() {
+  if (!connected) {
+    if (sessions.length > 0) { sessions = []; renderBubbles() }
+    return
+  }
+  try {
+    const list = await window.desktopPet.sessions()
+    if (!Array.isArray(list)) return
+    const prev = new Map(sessions.map(s => [s.id, s.activity]))
+    const next = sortSessions(list)
+    const changedIds = new Set(next.filter(s => prev.get(s.id) !== s.activity).map(s => s.id))
+    if (changedIds.size === 0 && sessions.length === next.length && sessions.every((s, i) => s.id === next[i].id)) return
+    sessions = next
+    renderBubbles(changedIds)
+  } catch {}
+}
+
 // ---- 行为运行时 ----
 
 function resetTransient(now) {
@@ -452,6 +637,8 @@ window.desktopPet.onConnection(value => {
   connected = value.connected === true
   connection.textContent = connected ? 'DSH 已连接' : 'DSH 未连接'
   if (connected && character === null) loadCharacter().catch(showAssetError)
+  if (connected) pollSessions()
+  else renderBubbles()
   render()
 })
 
@@ -482,7 +669,13 @@ async function start() {
   } catch {}
   try { await loadCharacter() } catch {}
   try { snapshot = await window.desktopPet.refresh() } catch {}
+  try {
+    const saved = localStorage.getItem('pet:bubble-mode')
+    if (MODES.includes(saved)) bubbleMode = saved
+  } catch {}
   tickTimer = setInterval(tick, TICK_MS)
+  sessionPollTimer = setInterval(pollSessions, SESSION_POLL_MS)
+  pollSessions()
   render()
 }
 

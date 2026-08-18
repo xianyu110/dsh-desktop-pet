@@ -202,6 +202,11 @@ ipcMain.handle('pet:get-manifest', async () => {
 ipcMain.handle('pet:get-config', async () => {
   try { return await readJson('/whale-girl/config') } catch { return null }
 })
+// 每会话活动（/whale-girl/sessions，上游 whale-girl 提供）：thinking / tool:<name>
+// / waiting / done。离线返回 null（渲染端隐藏气泡，不报错）。
+ipcMain.handle('pet:get-sessions', async () => {
+  try { return await readJson('/whale-girl/sessions') } catch { return null }
+})
 ipcMain.handle('pet:refresh', async () => {
   try { return await refresh() } catch { return null }
 })

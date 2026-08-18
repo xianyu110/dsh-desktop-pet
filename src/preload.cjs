@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('desktopPet', {
   bootstrap: () => ipcRenderer.invoke('pet:get-bootstrap'),
   manifest: () => ipcRenderer.invoke('pet:get-manifest'),
   config: () => ipcRenderer.invoke('pet:get-config'),
+  sessions: () => ipcRenderer.invoke('pet:get-sessions'),
   refresh: () => ipcRenderer.invoke('pet:refresh'),
   interact: action => ipcRenderer.invoke('pet:interact', action),
   setClickThrough: ignored => ipcRenderer.send('pet:set-click-through', ignored),
