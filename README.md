@@ -2,8 +2,8 @@
 
 |                                                                                           |                                                                                           |
 | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| ![image](https://github.com/user-attachments/assets/c1e886f5-e668-430a-8bf8-0cf22666b935) | ![image](https://github.com/user-attachments/assets/35573430-a3eb-4524-9d3d-b526cd62cbaa) |
-| ![image](https://github.com/user-attachments/assets/cdde0095-b2a6-4cf6-9bbb-cf01540682de) | ![image](https://github.com/user-attachments/assets/674066a5-568b-4007-9278-bb39fb2963c2) |
+| ![image](https://github.com/user-attachments/assets/0670e8da-ca0b-4680-92e7-6c0d085d9c3b) | ![image](https://github.com/user-attachments/assets/392f04c9-4e18-4c1d-a0de-8a6ec3d8b395) |
+| ![image](https://github.com/user-attachments/assets/4e4aacbb-f060-4624-bab6-6ced081e4bc2) | ![image](https://github.com/user-attachments/assets/64cafdbd-856d-4b50-8559-53b76aee4ad7) |
 
 感谢 @vlln 的付出！这是大肥鱼的 Linux / Windows 桌面版适配~
 
