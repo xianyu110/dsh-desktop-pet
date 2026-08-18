@@ -264,12 +264,16 @@ function cardBody(s) {
     + `<div class="s-activity"><span class="s-dot ${act.cls}"></span>${act.text}</div>`
 }
 
-function cardHTML(s, changed) {
-  const kind = s.activity === 'thinking' ? 'thinking'
+// 活动类别 → data-activity（驱动卡片 --card-state 上色：左条/右指示/圆点）
+function activityKind(s) {
+  return s.activity === 'thinking' ? 'thinking'
     : s.activity === 'waiting' ? 'waiting'
       : s.activity === 'done' ? 'done'
         : typeof s.activity === 'string' && s.activity.startsWith('tool:') ? 'tool' : 'idle'
-  return `<div class="session-card${changed ? ' s-flash' : ''}" data-activity="${kind}" data-waiting="${isWaiting(s)}" data-done="${s.activity === 'done'}">${cardBody(s)}</div>`
+}
+
+function cardHTML(s, changed) {
+  return `<div class="session-card${changed ? ' s-flash' : ''}" data-activity="${activityKind(s)}" data-waiting="${isWaiting(s)}" data-done="${s.activity === 'done'}">${cardBody(s)}</div>`
 }
 
 function setMode(mode) {
@@ -332,8 +336,8 @@ function renderOneMode(changedIds) {
     : []
   bubbleZone.innerHTML = `<div class="bubble-toolbar"><button class="mode-badge" title="切换显示模式" data-mode="one">${MODE_GLYPH.one}</button></div>`
     + `<div class="bubble-deck${hasBehind ? '' : ' deck-single'}">`
-    + behind.map((s, i) => `<div class="session-card deck-behind" style="top:${8 + i * 6}px;z-index:${2 - i}" data-done="${s.activity === 'done'}">${cardBody(s)}</div>`).join('')
-    + `<div class="session-card deck-front${changedIds.has(front.id) ? ' s-flash' : ''}" style="top:${hasBehind ? 20 : 0}px" data-waiting="${isWaiting(front)}" data-done="${front.activity === 'done'}">${cardBody(front)}</div>`
+    + behind.map((s, i) => `<div class="session-card deck-behind" style="top:${8 + i * 6}px;z-index:${2 - i}" data-activity="${activityKind(s)}" data-done="${s.activity === 'done'}">${cardBody(s)}</div>`).join('')
+    + `<div class="session-card deck-front${changedIds.has(front.id) ? ' s-flash' : ''}" style="top:${hasBehind ? 20 : 0}px" data-activity="${activityKind(front)}" data-waiting="${isWaiting(front)}" data-done="${front.activity === 'done'}">${cardBody(front)}</div>`
     + `</div>`
   bindModeBadge()
   if (!hasBehind) return // 单会话：无可切换目标，不绑点击

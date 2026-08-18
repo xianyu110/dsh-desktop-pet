@@ -360,9 +360,9 @@ body.has-bubbles .pulse { display: none; }
 .bubble-deck .session-card { position: absolute; left: 0; right: 0; }
 .bubble-zone[data-mode="one"] .deck-front { background: rgb(37 38 40 / .66); }
 .bubble-zone[data-mode="one"] .deck-behind { background: rgb(37 38 40 / .38); }
-/* 单会话：不露背后卡片，卡片走正常文档流 */
+/* 单会话：不露背后卡片，卡片走正常文档流（relative 保持 ::before/::after 锚定自身） */
 .bubble-deck.deck-single { height: auto; }
-.bubble-deck.deck-single .session-card { position: static; }
+.bubble-deck.deck-single .session-card { position: relative; }
 .deck-behind { pointer-events: none; opacity: .46; }
 .deck-front { z-index: 3; cursor: pointer; }
 .deck-front:hover { border-color: var(--border-strong); background: var(--panel-soft); transform: translateY(-1px); }
