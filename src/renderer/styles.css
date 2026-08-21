@@ -25,7 +25,7 @@ body { user-select: none; font-family: var(--font); font-variant-numeric: tabula
 
 .pet {
   position: absolute;
-  right: 18px;
+  right: 16px;
   bottom: 14px;
   width: 190px;
   /* 236 = 窗口 250 - bottom 14：容器加高，让状态卡（顶部）与精灵（底部）不重叠 */

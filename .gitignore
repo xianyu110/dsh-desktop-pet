@@ -3,3 +3,5 @@ dist/
 out/
 *.log
 dsh-config
+src-tauri/target/
+src-tauri/gen/

@@ -282,6 +282,20 @@ function setMode(mode) {
   renderBubbles()
 }
 
+// 窗口贴合内容高度（Tauri）：气泡区 + 宠物 236px + 上下边距；
+// 内容变化时让后端 resize（窗口向上生长，保持宠物贴屏幕底部），
+// 彻底消除透明窗口大块隐形背景挡住桌面操作的问题。
+let sizeSyncTimer = null
+function syncWindowSize() {
+  clearTimeout(sizeSyncTimer)
+  sizeSyncTimer = setTimeout(() => {
+    if (typeof window.desktopPet.resizeToContent !== 'function') return
+    const zoneH = bubbleZone.hidden ? 0 : bubbleZone.offsetHeight + 6
+    const height = 266 + zoneH // 10 上边距 + 气泡区 + 间距 + 236 宠物 + 14 下边距
+    window.desktopPet.resizeToContent(height)
+  }, 60)
+}
+
 function bindModeBadge() {
   bubbleZone.querySelector('.mode-badge')?.addEventListener('click', () => {
     setMode(MODES[(MODES.indexOf(bubbleMode) + 1) % MODES.length])
@@ -374,6 +388,7 @@ function renderBubbles(changedIds = new Set()) {
     document.body.classList.remove('has-bubbles')
     shownIds = new Set()
     lastWaitingIds = new Set() // 断线/清空后复位，重连时新等待会话能再次自动聚焦
+    syncWindowSize()
     return
   }
   shownIds = new Set(visible.map(s => s.id))
@@ -390,6 +405,7 @@ function renderBubbles(changedIds = new Set()) {
   if (bubbleMode === 'count') renderCountMode()
   else if (bubbleMode === 'one') renderOneMode(changedIds)
   else renderAllMode(changedIds)
+  syncWindowSize()
 }
 
 async function pollSessions() {
@@ -675,8 +691,8 @@ window.desktopPet.onConnection(value => {
   if (connected) pollSessions()
   else renderBubbles()
   render()
+  syncWindowSize()
 })
-
 async function loadCharacter() {
   manifest = await window.desktopPet.manifest()
   if (manifest === null) throw new Error('DSH 尚未启动')
@@ -712,6 +728,7 @@ async function start() {
   sessionPollTimer = setInterval(pollSessions, SESSION_POLL_MS)
   pollSessions()
   render()
+  syncWindowSize()
 }
 
 start().catch(showAssetError)
